@@ -1,12 +1,17 @@
 ﻿using System;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class PlayerMovement : MonoBehaviour
 {
     /// <summary>
     /// Wall run Tutorial stuff, scroll down for full movement
     /// </summary>
+    /// 
+
+    // Animator
+    private Animator anim;
+    float Vertical_f;
+    float Horizontal_f;
 
     //Wallrunning
     public LayerMask whatIsWall;
@@ -19,8 +24,8 @@ public class PlayerMovement : MonoBehaviour
     private void WallRunInput() //make sure to call in void Update
     {
         //Wallrun
-        if (Input.GetKey(KeyCode.D) && isWallRight /*&& skilltree.WallrunisUnlocked*/) StartWallrun();
-        if (Input.GetKey(KeyCode.A) && isWallLeft /*&& skilltree.WallrunisUnlocked*/) StartWallrun();
+        if (Input.GetKey(KeyCode.D) && isWallRight && skillHandler.UnlockableSkills[2]) StartWallrun();
+        if (Input.GetKey(KeyCode.A) && isWallLeft && skillHandler.UnlockableSkills[2]) StartWallrun();
     }
 
     private void StartWallrun()
@@ -68,17 +73,19 @@ public class PlayerMovement : MonoBehaviour
     public Transform orientation;
 
     public GameObject pauseMenu;
-    
 
     //Other
-    private Rigidbody rb;
-    public SkillTree skilltree;    
+    public ControlsHandler controlsHandler;
+    public SensitivityHandler sensitivityHandler;
+    public SkillHandler skillHandler;
+
     private bool pause;
+    private Rigidbody rb;
 
     //Rotation and look
     private float xRotation;
 
-    private float sensitivity = 50f;
+    //private float sensitivity = 50f;
     private float sensMultiplier = 1f;
 
     //Movement
@@ -130,6 +137,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Awake()
     {
+        anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody>();
         startMaxSpeed = maxSpeed;
     }
@@ -163,12 +171,16 @@ public class PlayerMovement : MonoBehaviour
             WallRunInput();
         }
 
+        Vertical_f = Input.GetAxisRaw("Vertical");
+        Horizontal_f = Input.GetAxisRaw("Horizontal");
+
+        anim.SetFloat("Forward", Vertical_f, 0.1f, Time.deltaTime);
+        anim.SetFloat("Side", Horizontal_f, 0.1f, Time.deltaTime);
     }
 
-   
     private void SetPause()
     {
-        if (Input.GetKeyDown(KeyCode.Q) && pause == false)
+        if (Input.GetKeyDown(controlsHandler.keyCode[1]) && pause == false)
         {
             pauseMenu.SetActive(true);
             pause = true;
@@ -177,9 +189,9 @@ public class PlayerMovement : MonoBehaviour
             Cursor.visible = true;
 
             Time.timeScale = 0;
-            
+
         }
-        else if (Input.GetKeyDown(KeyCode.Q) && pause == true)
+        else if (Input.GetKeyDown(controlsHandler.keyCode[1]) && pause == true)
         {
             pauseMenu.SetActive(false);
             pause = false;
@@ -199,20 +211,20 @@ public class PlayerMovement : MonoBehaviour
     {
         x = Input.GetAxisRaw("Horizontal");
         y = Input.GetAxisRaw("Vertical");
-        jumping = Input.GetButton("Jump");
-        crouching = Input.GetKey(KeyCode.LeftShift);
+        jumping = Input.GetKeyDown(controlsHandler.keyCode[0]);
+        crouching = Input.GetKey(controlsHandler.keyCode[2]);
 
         ///////////////////////////////////////////
 
 
         //Crouching
-        if (Input.GetKeyDown(KeyCode.LeftShift))
+        if (Input.GetKeyDown(controlsHandler.keyCode[2]))
             StartCrouch();
-        if (Input.GetKeyUp(KeyCode.LeftShift))
+        if (Input.GetKeyUp(controlsHandler.keyCode[2]))
             StopCrouch();
 
         //Double Jumping
-        if (Input.GetButtonDown("Jump") && !grounded && doubleJumpsLeft >= 1 )//&& skilltree.DoppleJumpisUnlocked)
+        if (Input.GetKeyDown(controlsHandler.keyCode[0]) && !grounded && doubleJumpsLeft >= 1 && skillHandler.UnlockableSkills[1])
         {
             Jump();
             doubleJumpsLeft--;
@@ -355,16 +367,18 @@ public class PlayerMovement : MonoBehaviour
             readyToJump = false;
 
             //normal jump
-            if (isWallLeft && !Input.GetKey(KeyCode.D) || isWallRight && !Input.GetKey(KeyCode.A))
+            if (isWallLeft && !Input.GetKey(controlsHandler.keyCode[1]) || isWallRight && !Input.GetKey(controlsHandler.keyCode[2]))
             {
                 rb.AddForce(Vector2.up * jumpForce * 1.5f);
                 rb.AddForce(normalVector * jumpForce * 0.5f);
             }
 
             //sidwards wallhop
-            if (isWallRight || isWallLeft && Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.D)) rb.AddForce(-orientation.up * jumpForce * 1f);
+            if (isWallRight || isWallLeft && Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.A)) rb.AddForce(-orientation.up * jumpForce * 1f);
             if (isWallRight && Input.GetKey(KeyCode.A)) rb.AddForce(-orientation.right * jumpForce * 3.2f);
             if (isWallLeft && Input.GetKey(KeyCode.D)) rb.AddForce(orientation.right * jumpForce * 3.2f);
+
+
 
             //Always add forward force
             rb.AddForce(orientation.forward * jumpForce * 1f);
@@ -416,8 +430,8 @@ public class PlayerMovement : MonoBehaviour
 
     private void Look()
     {
-        float mouseX = Input.GetAxis("Mouse X") * sensitivity * Time.fixedDeltaTime * sensMultiplier;
-        float mouseY = Input.GetAxis("Mouse Y") * sensitivity * Time.fixedDeltaTime * sensMultiplier;
+        float mouseX = Input.GetAxis("Mouse X") * sensitivityHandler.sensMultiplierX * Time.fixedDeltaTime * sensMultiplier;
+        float mouseY = Input.GetAxis("Mouse Y") * sensitivityHandler.sensMultiplierY * Time.fixedDeltaTime * sensMultiplier;
 
         //Find current look rotation
         Vector3 rot = playerCam.transform.localRotation.eulerAngles;
